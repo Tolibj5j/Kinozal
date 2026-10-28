@@ -79,7 +79,7 @@ const go=h=>{if(location.hash===h)draw();else location.hash=h};
 
 /* ---------- ko‘rinishlar ---------- */
 const POSTER=id=>/^[ks]\d+$/.test(id)?`img/${id}.svg`:'';
-const poster=m=>`<div class="poster${POSTER(m.id)?' pimg':''}" style="--c:${m.c}${POSTER(m.id)?`;--img:url(${POSTER(m.id)})`:''}" role="img" aria-label="${m.t} posteri"><b>${m.t}</b><span>${m.type==='shou'?'Jonli shou':LN[m.lang]+' • '+m.fmt}</span></div>`;
+const poster=m=>`<div class="poster${POSTER(m.id)?' pimg':''}" style="--c:${m.c}">${POSTER(m.id)?`<img src="${POSTER(m.id)}?v=2" alt="${m.t} posteri" loading="lazy">`:''}<b>${m.t}</b><span>${m.type==='shou'?'Jonli shou':LN[m.lang]+' • '+m.fmt}</span></div>`;
 const card=m=>`<a class="mc" href="#/movie/${m.id}">${poster(m)}<div class="mi"><h3>${m.t}</h3><div class="sub">★ ${m.r} · ${dur(m.d)}</div><div class="sub">${m.g.join(', ')}</div></div></a>`;
 const citySel=()=>`<select id="citySel" aria-label="Shahar">${CITY.map((c,i)=>`<option value="${i}" ${i===S.city?'selected':''}>${c[0]}</option>`).join('')}</select>`;
 const dateChips=()=>`<div class="chips">${[0,1,2,3,4,5,6].map(i=>`<button class="chip" aria-pressed="${S.date===i}" data-a="date" data-v="${i}">${dlab(i)}</button>`).join('')}</div>`;
