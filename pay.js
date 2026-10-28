@@ -30,33 +30,69 @@
 
   let root, ctx, done;
 
+  function shell(o, rows, title) {
+    root = document.createElement('div');
+    root.className = 'pg';
+    const cls = o.method === 'Payme' ? 'payme' : o.method === 'Click' ? 'click' : 'card';
+    root.innerHTML = `<div class="pg-box pgm-${title ? 'card' : cls}" role="dialog" aria-modal="true" aria-label="${title || 'To‘lov'}">
+      <div class="pg-head"><div class="pg-logo">${title ? 'KinoShow <b>Pay</b>' : o.method === 'Payme' ? 'pay<b>me</b>' : o.method === 'Click' ? '<b>●</b> click' : 'KinoShow <b>Pay</b>'}</div>
+        <span class="pg-lock">${title ? esc(title) : '🔒 Xavfsiz ulanish'}</span><button class="pg-x" data-pg="close" aria-label="Yopish">✕</button></div>
+      <div class="pg-sum">${rows}</div>
+      <div class="pg-desc">${esc(o.desc || '')}</div>
+      <div class="pg-body"></div>
+      <div class="pg-foot">PCI DSS · 3-D Secure · TLS 1.3 &nbsp;|&nbsp; Demo rejim: haqiqiy pul yechilmaydi</div>
+    </div><div class="pg-sms" hidden></div>`;
+    document.body.appendChild(root);
+    document.body.style.overflow = 'hidden';
+    root.addEventListener('click', onClick);
+    root.addEventListener('input', onInput);
+    root.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'radio' && e.target.type !== 'checkbox') { e.preventDefault(); const b = root.querySelector('.pg-btn:not([disabled])'); if (b) b.click(); }
+      if (e.key === 'Escape') ask();
+    });
+  }
+
   function open(o) {
     return new Promise((resolve) => {
       done = resolve;
       ctx = { ...o, wallet: o.method === 'Payme' || o.method === 'Click', phoneD: digits(o.phone), tries: 0 };
       if (ctx.phoneD.length === 9) ctx.phoneD = '998' + ctx.phoneD;
-      root = document.createElement('div');
-      root.className = 'pg';
-      const cls = o.method === 'Payme' ? 'payme' : o.method === 'Click' ? 'click' : 'card';
-      root.innerHTML = `<div class="pg-box pgm-${cls}" role="dialog" aria-modal="true" aria-label="To‘lov">
-        <div class="pg-head"><div class="pg-logo">${o.method === 'Payme' ? 'pay<b>me</b>' : o.method === 'Click' ? '<b>●</b> click' : 'KinoShow <b>Pay</b>'}</div>
-          <span class="pg-lock">🔒 Xavfsiz ulanish</span><button class="pg-x" data-pg="close" aria-label="Yopish">✕</button></div>
-        <div class="pg-sum"><div><small>Sotuvchi</small><b>KinoShow MChJ</b></div><div><small>Buyurtma</small><b>${esc(o.orderId)}</b></div>
-          <div class="pg-amt"><small>To‘lov summasi</small><b>${fmt(o.amount)}</b></div></div>
-        <div class="pg-desc">${esc(o.desc || '')}</div>
-        <div class="pg-body"></div>
-        <div class="pg-foot">PCI DSS · 3-D Secure · TLS 1.3 &nbsp;|&nbsp; Demo rejim: haqiqiy pul yechilmaydi</div>
-      </div><div class="pg-sms" hidden></div>`;
-      document.body.appendChild(root);
-      document.body.style.overflow = 'hidden';
-      root.addEventListener('click', onClick);
-      root.addEventListener('input', onInput);
-      root.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' && e.target.tagName === 'INPUT') { e.preventDefault(); const b = root.querySelector('.pg-btn:not([disabled])'); if (b) b.click(); }
-        if (e.key === 'Escape') ask();
-      });
+      shell(o, `<div><small>Sotuvchi</small><b>KinoShow MChJ</b></div><div><small>Buyurtma</small><b>${esc(o.orderId)}</b></div>
+        <div class="pg-amt"><small>To‘lov summasi</small><b>${fmt(o.amount)}</b></div>`);
       if (ctx.wallet) stepWallet(); else stepCard();
     });
+  }
+
+  /* ---------- Chiptani qaytarish ---------- */
+  const REASONS = ['Rejalarim o‘zgardi', 'Boshqa seans yoki kunni tanlayman', 'Kasallik sababli', 'Xato sotib oldim', 'Boshqa sabab'];
+  const TERM = (m) => m === 'Payme' || m === 'Click' ? `${m} hamyoniga darhol` : m === 'Visa/Mastercard' ? '3–10 ish kunida kartaga' : '1–3 ish kunida kartaga';
+  function refund(o) {
+    return new Promise((resolve) => {
+      done = resolve;
+      ctx = { ...o, refund: true };
+      shell(o, `<div><small>Chipta</small><b>${esc(o.orderId)}</b></div><div><small>Joylar</small><b>${esc(o.seats)}</b></div>
+        <div class="pg-amt"><small>Qaytariladigan summa</small><b>${fmt(o.amount)}</b></div>`, 'Chiptani qaytarish');
+      body(`${o.warn ? `<div class="pg-warn">${esc(o.warn)}</div>` : ''}
+        <div class="pg-rc"><span>Qaytariladi</span><b>${esc(o.method || '—')}${o.mask ? ' · ' + esc(o.mask) : ''}</b><span>Muddat</span><b>${TERM(o.method)}</b><span>Shart</span><b>Seansdan kamida 24 soat oldin, to‘liq summa</b></div>
+        <p class="pg-p" style="margin-top:12px"><b>Qaytarish sababi</b></p>
+        <div class="pg-list">${REASONS.map((r, k) => `<label class="pg-opt"><input type="radio" name="pgr" value="${esc(r)}" ${k === 0 ? 'checked' : ''}><span>${esc(r)}</span></label>`).join('')}</div>
+        <label class="pg-chk" style="margin-top:12px"><input type="checkbox" id="pgAgree"> Chipta bekor qilinishi va joylar qayta sotuvga chiqarilishiga roziman</label>
+        <div class="pg-err"></div><button class="pg-btn" data-pg="rfgo">${fmt(o.amount)} qaytarish</button>`);
+    });
+  }
+  async function processRefund() {
+    const reason = root.querySelector('input[name=pgr]:checked').value;
+    if (!root.querySelector('#pgAgree').checked) return err('Davom etish uchun rozilikni belgilang');
+    ctx.busy = true;
+    body(`<div class="pg-proc"><div class="pg-spin"></div><ul><li>Chipta bekor qilinmoqda</li><li>Bank bilan bog‘lanilmoqda</li><li>Mablag‘ qaytarilmoqda</li></ul></div>`);
+    const li = root.querySelectorAll('.pg-proc li');
+    for (const l of li) { l.className = 'run'; await sleep(550 + rndInt(300)); l.className = 'ok'; }
+    ctx.busy = false;
+    const r = { ok: true, id: 'RF' + Date.now().toString(36).toUpperCase() + rndStr(4, 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'), at: Date.now(), reason, amount: ctx.amount };
+    ctx.paid = r;
+    body(`<div class="pg-done"><div class="pg-ok">↩</div><h3>Chipta qaytarildi</h3><b class="pg-big">${fmt(ctx.amount)}</b>
+      <div class="pg-rc"><span>Qaytarish ID</span><b>${r.id}</b><span>Qayerga</span><b>${esc(ctx.method || '—')}${ctx.mask ? ' · ' + esc(ctx.mask) : ''}</b><span>Muddat</span><b>${TERM(ctx.method)}</b><span>Sabab</span><b>${esc(reason)}</b><span>Vaqt</span><b>${new Date(r.at).toLocaleString('ru-RU')}</b></div>
+      <button class="pg-btn" data-pg="finish">Tayyor</button></div>`);
   }
 
   function finish(r) {
@@ -68,6 +104,7 @@
   function ask() {
     if (ctx.busy) return;
     if (ctx.paid) return finish(ctx.paid);
+    if (ctx.refund) return finish({ ok: false, reason: 'cancel' });
     if (confirm('To‘lovni bekor qilasizmi? Tanlangan joylar saqlanib qoladi.')) finish({ ok: false, reason: 'cancel' });
   }
   const body = (h) => { const b = root.querySelector('.pg-body'); b.innerHTML = h; const i = b.querySelector('input'); if (i) setTimeout(() => i.focus(), 30); };
@@ -229,6 +266,7 @@
       await sleep(600);
       return stepOtp();
     }
+    if (a === 'rfgo') return processRefund();
     if (a === 'resend') return sendOtp();
     if (a === 'otp') {
       const v = digits(root.querySelector('#pgOtp').value);
@@ -272,5 +310,5 @@
     err('');
   }
 
-  window.KSPay = { open, luhn, brandOf };
+  window.KSPay = { open, refund, luhn, brandOf };
 })();

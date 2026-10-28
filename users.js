@@ -40,10 +40,18 @@
     if (String(pass || '').length < 6) return { ok: false, error: 'Parol kamida 6 ta belgidan iborat bo‘lsin' };
     if (pass2 !== undefined && pass !== pass2) return { ok: false, error: 'Parollar bir xil emas' };
     const users = read();
-    if (users.some((u) => u.phone === d)) return { ok: false, error: 'Bu raqam allaqachon ro‘yxatdan o‘tgan. “Kirish” bo‘limidan foydalaning' };
     const salt = rnd(16);
     const now = Date.now();
     const algo = window.crypto && crypto.subtle ? 'sha256' : 'fnv';
+    const ex = users.find((u) => u.phone === d);
+    if (ex && ex.seed) {
+      // Kassada xarid qilgan mijoz saytda ro'yxatdan o'tsa, eski xaridlari o'zida qoladi
+      Object.assign(ex, { name, salt, pass: await hash(pass, salt, algo), seed: false, wasSeed: true, src: 'Sayt', lastLogin: now, lastSeen: now, logins: (ex.logins || 0) + 1 });
+      if (!write(users)) return { ok: false, error: 'Xotira to‘ldi, hisob saqlanmadi' };
+      setSession(ex);
+      return { ok: true, user: pub(ex) };
+    }
+    if (ex) return { ok: false, error: 'Bu raqam allaqachon ro‘yxatdan o‘tgan. “Kirish” bo‘limidan foydalaning' };
     const u = { id: 'u' + rnd(6), name, phone: d, salt, pass: await hash(pass, salt, algo), createdAt: now, lastLogin: now, lastSeen: now, logins: 1, blocked: false };
     users.push(u);
     if (!write(users)) return { ok: false, error: 'Xotira to‘ldi, hisob saqlanmadi' };
@@ -58,6 +66,7 @@
     const u = users.find((x) => x.phone === d);
     if (!u) return { ok: false, error: 'Bu raqam bilan hisob topilmadi. Avval ro‘yxatdan o‘ting' };
     if (u.blocked) return { ok: false, error: 'Hisobingiz bloklangan. Administrator bilan bog‘laning' };
+    if (u.seed || !u.pass) return { ok: false, error: 'Bu raqam kassada ro‘yxatga olingan, lekin parol o‘rnatilmagan. “Ro‘yxatdan o‘tish” orqali parol qo‘ying: avvalgi chiptalaringiz saqlanadi' };
     const algo = u.pass.split(':')[0];
     if ((await hash(pass, u.salt, algo)) !== u.pass) return { ok: false, error: 'Parol noto‘g‘ri' };
     u.lastLogin = u.lastSeen = Date.now();
@@ -89,5 +98,14 @@
     return write(users);
   }
 
-  window.KSAuth = { register, login, current, logout, all: read, setBlocked, normPhone, fmtPhone };
+  // Kassa va boshqa kanallar orqali xarid qilgan mijozlar (bir marta yoziladi)
+  function seed(list) {
+    const users = read();
+    if (users.some((u) => u.seed || u.wasSeed)) return false;
+    const have = new Set(users.map((u) => u.phone));
+    list.forEach((u) => { if (!have.has(u.phone)) users.push(u); });
+    return write(users);
+  }
+
+  window.KSAuth = { register, login, current, logout, all: read, setBlocked, seed, normPhone, fmtPhone };
 })();

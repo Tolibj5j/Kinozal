@@ -47,7 +47,7 @@ async (page) => {
   await page.fill('#lname', 'Aziz Karimov'); await page.fill('#lphone', '901234567'); await page.fill('#lpass', 'parol123'); await page.fill('#lpass2', 'parol123');
   await page.click('#fup button[type=submit]'); await w(300);
   ok('Ro‘yxatdan o‘tish', (await text('#nav')).includes('Aziz'));
-  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('users'))[0]);
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('users')).find((u) => u.phone === '998901234567'));
   const secure = await page.evaluate(() => isSecureContext);
   ok('Parol ochiq saqlanmaydi (xesh)', stored.pass.startsWith(secure ? 'sha256:' : 'fnv:') && !JSON.stringify(stored).includes('parol123'), secure ? 'SHA-256' : 'https bo‘lmagan test muhiti: zaxira xesh (GitHub Pages’da SHA-256)');
   await page.click('#nav a.btn'); await w(150); await page.click('[data-a=logout]'); await w(150);
@@ -153,14 +153,17 @@ async (page) => {
   await page.goto(BASE + '#/orders'); await w(300);
   const cnt = await page.locator('#app .shw').count();
   ok('Chiptalarim: foydalanuvchining 5 ta buyurtmasi', cnt === 5, `${cnt} ta`);
-  const cb = page.locator('[data-a=cancel]').first();
+  const cb = page.locator('[data-a=refund]').first();
   const canCancel = await cb.count();
   if (canCancel) {
     const code = await cb.getAttribute('data-v');
-    await cb.click(); await w(300);
-    const st = await page.evaluate((c) => { const o = orders().find((x) => x.code === c); const [ci, mid, date, time] = o.key.split('|'); return { st: o.st, freed: !sold({ ci: +ci, mid, date, time }).has(o.seats[0]) || true }; }, code);
-    ok('Chiptani bekor qilish: holat “Bekor qilingan”, boshqa buyurtmalar o‘chmaydi', st.st === 'cancel' && (await page.evaluate(() => orders().length)) === 5);
-  } else ok('Chiptani bekor qilish', true, 'seansga 30 daqiqadan kam qolgani uchun tugma yo‘q');
+    await cb.click(); await page.waitForSelector('[data-pg=rfgo]');
+    await page.click('[data-pg=rfgo]'); const e1 = await text('.pg-err');
+    await page.check('#pgAgree'); await page.click('[data-pg=rfgo]');
+    await page.waitForSelector('[data-pg=finish]', { timeout: 8000 }); await page.click('[data-pg=finish]'); await w(300);
+    const st = await page.evaluate((c) => orders().find((x) => x.code === c).st, code);
+    ok('Chiptani qaytarish: rozilik so‘raladi, holat “Qaytarilgan”, boshqa buyurtmalar o‘chmaydi', e1.includes('rozilik') && st === 'cancel' && (await page.evaluate(() => orders().length)) === 5);
+  } else ok('Chiptani qaytarish', true, 'barcha seanslarga 24 soatdan kam qolgani uchun tugma yo‘q (qoida bo‘yicha)');
 
   // 9. Admin
   await page.goto(BASE + '#/admin'); await w(200);
@@ -168,18 +171,19 @@ async (page) => {
   ok('Admin: noto‘g‘ri kod rad etiladi', (await text('#aerr')).includes('noto‘g‘ri'));
   await page.fill('#acode', '1234'); await page.click('#fadm button'); await w(200);
   const kpi = await text('.kpi');
-  ok('Admin: umumiy statistika', kpi.includes('Foydalanuvchilar') && kpi.includes('1'), kpi.replace(/\n/g, ' ').slice(0, 120));
+  ok('Admin: umumiy statistika', kpi.includes('Mijozlar'), kpi.replace(/\n/g, ' ').slice(0, 120));
   await page.click('[data-a=atab][data-v=users]'); await w(200);
+  await page.fill('#aq', '901234567'); await w(400);
   const ut = await text('#atable');
   ok('Admin: foydalanuvchilar ro‘yxati (haqiqiy ro‘yxatdan o‘tgan)', ut.includes('Aziz Karimov') && ut.includes('+998 90 123 45 67'), ut.split('\n')[1]);
   const [dlu] = await Promise.all([page.waitForEvent('download'), page.click('[data-a=csv]')]);
-  ok('Admin: foydalanuvchilarni Excel (CSV) ga yuklab olish', dlu.suggestedFilename().startsWith('foydalanuvchilar'));
+  ok('Admin: mijozlarni Excel (CSV) ga yuklab olish', dlu.suggestedFilename().startsWith('mijozlar'));
   await page.click('[data-a=ublock]'); await w(200);
   ok('Admin: foydalanuvchini bloklash', (await text('#atable')).includes('Bloklangan'));
   await page.click('[data-a=uorders]'); await w(200);
   ok('Admin: foydalanuvchining buyurtmalari', (await page.locator('#atable tr').count()) === 6);
   await page.selectOption('#af', 'cancel'); await w(150);
-  ok('Admin: holat bo‘yicha filtr', (await page.locator('#atable tr').count()) === (canCancel ? 2 : 1));
+  ok('Admin: holat bo‘yicha filtr', (await page.locator('#atable tr').count()) === (canCancel ? 2 : 0));
   await page.click('[data-a=atab][data-v=films]'); await w(150);
   await page.fill('#nt', 'Test filmi'); await page.click('[data-a=addm]'); await w(150);
   ok('Admin: yangi film qo‘shish', (await page.evaluate(() => CAT().length)) === ids.mov.length + 1);
@@ -190,12 +194,12 @@ async (page) => {
   ok('Bloklangan foydalanuvchi sessiyadan chiqariladi', !(await text('#nav')).includes('Aziz'));
   await go('#/login'); await page.fill('#lphone', '901234567'); await page.fill('#lpass', 'parol123'); await page.click('#fin button[type=submit]'); await w(300);
   ok('Bloklangan foydalanuvchi kira olmaydi', (await text('#lerr')).includes('bloklangan'));
-  await go('#/admin'); await page.click('[data-a=atab][data-v=users]'); await w(150); await page.click('[data-a=ublock]'); await w(150);
+  await go('#/admin'); await page.click('[data-a=atab][data-v=users]'); await w(150); await page.fill('#aq', '901234567'); await w(400); await page.click('[data-a=ublock]'); await w(150);
 
   // 10. Ma'lumotlar saqlanadi (sahifa yangilangandan keyin)
   await page.reload(); await w(300);
   const persist = await page.evaluate(() => ({ u: KSAuth.all().length, o: orders().length }));
-  ok('Sahifa yangilangandan keyin ma’lumotlar saqlanib qoladi', persist.u === 1 && persist.o === 5, `${persist.u} foydalanuvchi, ${persist.o} buyurtma`);
+  ok('Sahifa yangilangandan keyin ma’lumotlar saqlanib qoladi', persist.u === 2001 && persist.o === 5, `${persist.u} foydalanuvchi, ${persist.o} buyurtma`);
 
   // 11. Mobil ko'rinish
   await page.setViewportSize({ width: 390, height: 844 });
