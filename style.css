@@ -169,3 +169,6 @@ footer{margin-top:50px;padding:26px 0;border-top:1px solid var(--ln);color:var(-
 .pg-sms.in{animation:pgsms .45s cubic-bezier(.2,.8,.2,1)}@keyframes pgsms{from{transform:translate(-50%,-120%)}}
 .pg-sms b{display:block}.pg-sms span b{display:inline;font-size:15px;letter-spacing:1px}.pg-sms small{opacity:.6}
 @media print{.tkw,.tkw *{visibility:visible}.tkw{position:absolute;left:0;top:0}}
+.pg-warn{background:#fff4e0;color:#8a5a00;border:1px solid #f3d29a;border-radius:10px;padding:9px 12px;font-size:13px;margin-bottom:10px}
+.rfn{font-size:12px;color:var(--mu)}.rfn.no{color:var(--ac)}
+.src{font-size:10px;font-weight:800;border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:2px;background:var(--ln);color:var(--mu)}

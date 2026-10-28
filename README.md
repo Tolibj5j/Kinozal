@@ -15,9 +15,11 @@ Sayt: https://tolibj5j.github.io/Kinozal/
   - karta raqami Luhn algoritmi bilan tekshiriladi, karta turi raqamdan aniqlanadi
   - SMS tasdiqlash kodi (3-D Secure), 60 soniya taymer, 3 ta urinish
   - to‘lov cheki: tranzaksiya ID, RRN, avtorizatsiya kodi
-- Chipta: skanerlanadigan QR kod, chop etish, bekor qilish (pul qaytarish)
+- Chipta: skanerlanadigan QR kod, chop etish
+- **Chiptani qaytarish**: faqat seans boshlanishidan kamida **24 soat oldin**, to‘liq summa. Sabab tanlanadi, rozilik so‘raladi, qaytarish ID va muddat ko‘rsatiladi (Payme/Click hamyoniga darhol, kartaga 1–3 ish kuni). 24 soatdan kam qolganda mijoz ham, admin ham qaytara olmaydi
+- **Band joylar mijozlar nomidan**: zallardagi barcha band joylar (7 kun, ~190 000 joy) 2 000 ta mijoz nomidan buyurtma sifatida saqlangan: kassa, mobil ilova va Telegram bot orqali sotilgan (ismlar to‘qima). Kassa mijozi saytda o‘z raqami bilan ro‘yxatdan o‘tsa, eski chiptalari hisobida ko‘rinadi
 - Foydalanuvchilar: ro‘yxatdan o‘tish va kirish (telefon + parol, parol SHA-256 xesh bilan saqlanadi)
-- Admin panel (demo kod: `1234`): statistika, ro‘yxatdan o‘tgan foydalanuvchilar, bloklash, buyurtmalar, filtr va qidiruv, Excel (CSV) eksport, film qo‘shish/o‘chirish
+- Admin panel (demo kod: `1234`): statistika (savdo kanallari, to‘lov usullari, shaharlar, qaytarilganlar), mijozlar (buyurtma soni, sarflagan summa, kanal), bloklash, buyurtmalar (qidiruv, holat va kanal filtri, qaytarish), Excel (CSV) eksport, film qo‘shish/o‘chirish
 
 ## Test kartalar
 | Karta | Natija |
@@ -36,6 +38,7 @@ Ma’lumotlar (foydalanuvchilar, buyurtmalar) brauzerning localStorage xotirasid
 
 ## Testlar
 - `tests/e2e.js` — barcha bo‘limlarni tekshiruvchi Playwright testi (40 ta tekshiruv)
+- `tests/e2e-refund.js` — band joylar va 24 soatlik qaytarish qoidasi testi (23 ta tekshiruv)
 - `tests/load-test.js` — katta ma’lumotlar bilan yuklama testi, natijalar `tests/TEST-NATIJALARI.md`
 
 ## Ishga tushirish

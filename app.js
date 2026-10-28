@@ -54,12 +54,23 @@ const SN=[['pop','Popkorn (katta)',25000],['cola','Cola 0.5 l',15000],['nach','N
 const PAYS=['Payme','Click','Uzcard','Humo','Visa/Mastercard'];
 const PROMO={KINOBIRINCHI:'Birinchi buyurtmaga 25% chegirma (30 000 so‘mgacha)',TALABA:'Talabalar uchun 15% chegirma',POPKORN:'2 va undan ortiq chiptaga bepul popkorn (25 000 so‘m)',SHOUKECHA:'Shoular uchun 10% chegirma'};
 const OFFERS=[['KINOBIRINCHI','Birinchi buyurtmaga 25% chegirma','Platformadagi birinchi buyurtmangizga 30 000 so‘mgacha chegirma.','Amal qiladi: 30-noyabrgacha'],['TALABA','Talabalar uchun 15%','Dushanbadan juma kunigacha 12:40 seansigacha kinolarga.','Amal qiladi: doimiy'],['POPKORN','Ikkita chipta, bepul popkorn','2 va undan ortiq chipta olsangiz, katta popkorn sovg‘a.','Amal qiladi: ish kunlari'],['SHOUKECHA','Shoularga 10% chegirma','Konsert, stand-up va balet chiptalariga hafta oxirida.','Amal qiladi: shanba, yakshanba']];
-const S={city:Math.min(ld('city',0),CITY.length-1),date:0,gen:'',type:'',lang:'',q:'',B:null,user:KSAuth.current(),adm:sessionStorage.getItem('ks-adm')==='1',extra:ld('extra',[]),lt:'in',ret:null,opage:1,apage:1,at:'stats',aq:'',af:''};
+// Kassa, mobil ilova va Telegram bot orqali chipta olgan mijozlar (ismlar to‘qima)
+const FN=['Aziz','Dilnoza','Jasur','Madina','Sardor','Nodira','Bekzod','Shahzoda','Otabek','Malika','Javohir','Gulnora','Sherzod','Kamola','Doniyor','Zarina','Ulug‘bek','Feruza','Akmal','Nigora','Bobur','Sevara','Jahongir','Lola','Rustam','Dildora','Temur','Mohira','Anvar','Gulchehra'];
+const SURN=['Karimov','Rahimov','Toshmatov','Yusupov','Aliyev','Ergashev','Qodirov','Saidov','Nazarov','Mirzayev','Xolmatov','Sobirov','Hasanov','Abdullayev','Tursunov','Islomov','Jo‘rayev','Normatov','Umarov','Sultonov'];
+const SRC=['Kassa','Kassa','Mobil ilova','Telegram bot','Kassa'],NC=2000;
+const CUST=Array.from({length:NC},(_,i)=>{const h=hash('cust'+i),fi=h%FN.length,ops=['90','91','93','94','95','97','98','99','33','88'];return{id:'c'+i,name:FN[fi]+' '+SURN[(h>>>8)%SURN.length]+(fi%2?'a':''),phone:'998'+ops[(h>>>4)%ops.length]+String(1000000+hash('p'+i)%9000000),src:SRC[(h>>>12)%SRC.length]}});
+KSAuth.seed(CUST.map(c=>{const h=hash('d'+c.id);return{id:c.id,name:c.name,phone:c.phone,src:c.src,seed:true,pass:'',salt:'',createdAt:Date.now()-(2+h%420)*864e5,lastSeen:Date.now()-(h>>>9)%(10*864e5),logins:0,blocked:false}}));
+const S={city:Math.min(ld('city',0),CITY.length-1),date:0,gen:'',type:'',lang:'',q:'',B:null,user:KSAuth.current(),adm:sessionStorage.getItem('ks-adm')==='1',extra:ld('extra',[]),lt:'in',ret:null,opage:1,apage:1,upage:1,at:'stats',aq:'',af:'',as:''};
 const CAT=()=>M0.concat(S.extra);
 const mov=id=>CAT().find(m=>m.id===id);
 let _oRaw,_oList=[];
 const orders=()=>{const raw=localStorage.getItem('orders');if(raw!==_oRaw){_oRaw=raw;try{_oList=JSON.parse(raw)||[]}catch(e){_oList=[]}}return _oList};
 const paid=o=>o.st!=='cancel';
+let _scRaw,_sc={};
+const scancel=()=>{const raw=localStorage.getItem('scancel');if(raw!==_scRaw){_scRaw=raw;try{_sc=JSON.parse(raw)||{}}catch(e){_sc={}}}return _sc};
+const B32='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const hcode=x=>{let a=hash(x),b=hash(x+'#'),c='KS-';for(let k=0;k<4;k++){c+=B32[a%32];a=Math.floor(a/32)}for(let k=0;k<4;k++){c+=B32[b%32];b=Math.floor(b/32)}return c};
+const RF_H=24;
 const dobj=i=>{const d=new Date();d.setDate(d.getDate()+i);return d};
 const dk=i=>{const d=dobj(i);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const WD=['Yak','Dush','Sesh','Chor','Pay','Jum','Shan'];
@@ -67,7 +78,7 @@ const dlab=i=>i?WD[dobj(i).getDay()]+' '+dobj(i).getDate()+'.'+String(dobj(i).ge
 const dur=n=>Math.floor(n/60)+' s '+n%60+' daq';
 const dt=ts=>ts?new Date(ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 const sstart=o=>new Date(o.date+'T'+o.time+':00').getTime();
-const POSTER=id=>/^[ks]\d+$/.test(id)?`img/${id}.svg?v=3`:'';
+const POSTER=id=>/^[ks]\d+$/.test(id)?`img/${id}.svg?v=4`:'';
 function showsOf(ci,date){
   const out=[];
   CAT().forEach(m=>{const h=hash(ci+m.id+date);
@@ -78,12 +89,44 @@ function showsOf(ci,date){
 const isPast=(date,t)=>{if(date!==dk(0))return false;const n=new Date();return +t.slice(0,2)*60+ +t.slice(3)<=n.getHours()*60+n.getMinutes()};
 function price(c,m,r){const mul=m.type==='shou'?2.2:m.fmt==='IMAX'?1.5:m.fmt==='3D'?1.25:1;return Math.round(CIN[c].base*mul*(r>=CIN[c].r-2?1.5:1)/1000)*1000}
 const skey=B=>[B.ci,B.mid,B.date,B.time].join('|');
+// Oldindan band bo‘lgan joylar: qatordagi yonma-yon joylar 1-4 kishilik buyurtmalarga bo‘linadi
+function seedGroups(B){
+  const c=CIN[B.ci],k=skey(B),half=Math.ceil(c.c/2),out=[];let h=hash(k);
+  const chunk=run=>{let j=0;while(j<run.length){const n=1+hash(k+run[j])%4,seats=run.slice(j,j+n);out.push({seats,gid:k+'#'+seats[0],code:hcode(k+'|'+seats.join())});j+=n}};
+  for(let r=0;r<c.r;r++){let run=[];
+    for(let i=1;i<=c.c;i++){if(i===half+1&&run.length){chunk(run);run=[]}
+      h=Math.imul(h^(r*31+i),2654435761)>>>0;if(h%100<(35+k.length%10))run.push(String.fromCharCode(65+r)+i);else if(run.length){chunk(run);run=[]}}
+    if(run.length)chunk(run)}
+  return out;
+}
 function sold(B){
-  const c=CIN[B.ci],k=skey(B),set=new Set();let h=hash(k);
-  for(let r=0;r<c.r;r++)for(let i=1;i<=c.c;i++){h=Math.imul(h^(r*31+i),2654435761)>>>0;if(h%100<(35+k.length%10))set.add(String.fromCharCode(65+r)+i)}
+  const k=skey(B),set=new Set(),sc=scancel();
+  seedGroups(B).forEach(g=>{if(!sc[g.gid])g.seats.forEach(s=>set.add(s))});
   orders().forEach(o=>{if(o.key===k&&paid(o))o.seats.forEach(s=>set.add(s))});
   return set;
 }
+function seedOrdersFor(ci,m,date,time){
+  const B={ci,mid:m.id,date,time},k=skey(B),st=new Date(date+'T'+time+':00').getTime(),sc=scancel(),now=Date.now();
+  return seedGroups(B).map(g=>{const h=hash(g.code),cu=CUST[h%NC],total=g.seats.reduce((a,x)=>a+price(ci,m,x.charCodeAt(0)-65),0);
+    const meth=cu.src==='Kassa'?((h>>>3)%2?'Naqd':'Uzcard'):['Payme','Click','Humo','Uzcard'][(h>>>3)%4];
+    const ts=Math.min(now-6e5-h%36e5,st-36e5*(1+(h>>>5)%72)),x=sc[g.gid];
+    return{code:g.code,gid:g.gid,key:k,ci,mid:m.id,date,time,seats:g.seats,sn:{},sub:total,total,name:cu.name,phone:KSAuth.fmtPhone(cu.phone),uid:cu.id,pay:meth,src:cu.src,seed:1,
+      st:x?'cancel':'paid',refundAt:x?x.at:undefined,refund:x||undefined,payment:{method:meth,mask:meth==='Naqd'?'':(meth==='Humo'?'9860 ':'8600 ')+(10+h%90)+'** **** '+(1000+(h>>>7)%9000),txn:(meth==='Naqd'?'KS':'TX')+h.toString(36).toUpperCase()+(h>>>11).toString(36).toUpperCase(),rrn:String(100000000000+h%899999999999),auth:hcode(g.code+'a').slice(3,9),at:ts},ts}});
+}
+let _seed=null,_seedKey='',_all=null,_allKey='',_us=null,_usKey='';
+function allOrders(){
+  const real=orders(),sc=scancel(),sk=dk(0)+'|'+_scRaw+'|'+S.extra.length,key=sk+'|'+_oRaw;
+  if(_all&&key===_allKey)return _all;
+  if(!_seed||sk!==_seedKey){_seed=[];const seen=new Set(real.map(o=>o.code));for(let d=0;d<7;d++){const date=dk(d);CIN.forEach(c=>showsOf(c.id,date).forEach(x=>x.t.forEach(t=>{const l=seedOrdersFor(c.id,x.m,date,t);for(const o of l){let n=0;while(seen.has(o.code))o.code=hcode(o.gid+'*'+(++n));seen.add(o.code);_seed.push(o)}})))}_seedKey=sk}
+  _all=real.map(o=>o.src?o:{...o,src:'Sayt'}).concat(_seed).sort((a,b)=>b.ts-a.ts);_allKey=key;return _all;
+}
+function ustats(){const all=allOrders();if(_us&&_usKey===_allKey)return _us;const m={};for(const o of all){if(!o.uid||!paid(o))continue;const x=m[o.uid]||(m[o.uid]={n:0,sum:0,last:0});x.n++;x.sum+=o.total;if(o.ts>x.last)x.last=o.ts}_us=m;_usKey=_allKey;return m}
+const myOrders=()=>{const u=KSAuth.all().find(x=>x.id===S.user.id)||{};return(u.wasSeed||S.user.id[0]==='c'?allOrders():orders()).filter(o=>o.uid===S.user.id)};
+const findOrder=code=>orders().find(x=>x.code===code)||(code?allOrders().find(x=>x.code===code):null);
+const hoursLeft=o=>(sstart(o)-Date.now())/36e5;
+const canRefund=o=>paid(o)&&hoursLeft(o)>=RF_H;
+const rfDeadline=o=>dt(sstart(o)-RF_H*36e5);
+const rfNote=o=>!paid(o)?'':sstart(o)<Date.now()?'<span class="rfn">Seans o‘tgan</span>':canRefund(o)?`<span class="rfn">Qaytarish mumkin: ${rfDeadline(o)} gacha</span>`:'<span class="rfn no">Qaytarib bo‘lmaydi: seansga 24 soatdan kam qoldi</span>';
 const seatPrice=(B,id)=>price(B.ci,mov(B.mid),id.charCodeAt(0)-65);
 function calc(B){
   const base=B.sel.reduce((a,s)=>a+seatPrice(B,s),0),sn=SN.reduce((a,x)=>a+(B.sn[x[0]]||0)*x[2],0),sub=base+sn;
@@ -108,7 +151,8 @@ const citySel=()=>`<select id="citySel" aria-label="Shahar">${CITY.map((c,i)=>`<
 const dateChips=()=>`<div class="chips">${[0,1,2,3,4,5,6].map(i=>`<button class="chip" aria-pressed="${S.date===i}" data-a="date" data-v="${i}">${dlab(i)}</button>`).join('')}</div>`;
 const timeChips=(ci,m,date,ts)=>ts.map(t=>`<button class="chip" ${isPast(date,t)?'disabled':''} data-a="book" data-v="${ci}|${m.id}|${date}|${t}">${t} · ${fmt(price(ci,m,0))}</button>`).join('');
 const cinCard=c=>`<a class="card" href="#/cinema/${c.id}" style="display:block"><h3>${c.n}</h3><div class="sub">${c.ad}, ${CITY[c.city][1]}</div><div class="tags">${c.ft.map(f=>`<i>${f}</i>`).join('')}<i>${c.r*c.c} o‘rin</i></div><b style="color:var(--ac)">Seanslarni ko‘rish</b></a>`;
-const badge=o=>!paid(o)?'<span class="st st-c">Bekor qilingan</span>':sstart(o)<Date.now()?'<span class="st st-p">O‘tgan</span>':'<span class="st st-ok">To‘langan</span>';
+const srcB=o=>o.src&&o.src!=='Sayt'?`<span class="src">${esc(o.src)}</span>`:'';
+const badge=o=>!paid(o)?'<span class="st st-c">Qaytarilgan</span>':sstart(o)<Date.now()?'<span class="st st-p">O‘tgan</span>':'<span class="st st-ok">To‘langan</span>';
 
 function home(){
   const mv=CAT().filter(m=>m.type==='kino').slice(0,10),sh=CAT().filter(m=>m.type==='shou').slice(0,5);
@@ -210,18 +254,20 @@ function checkout(){
 }
 function tkHTML(o){const m=mov(o.mid)||{t:o.title||'—'},c=CIN[o.ci]||{n:'—',city:0};return`<div class="tk" id="tkt">${qr(o.code)}<div><div class="tc">${o.code} ${badge(o)}</div><b>${esc(m.t)}</b><div class="sub">${c.n}, ${CITY[c.city][0]}<br>${o.date.split('-').reverse().join('.')} · ${o.time}</div><div>Joylar: ${o.seats.join(', ')}</div><div class="sub">${esc(o.name)} · ${fmt(o.total)}</div></div></div>`}
 function receipt(o){const p=o.payment||{};return`<div class="card rc"><h3>To‘lov cheki</h3><div class="kv"><span>Sotuvchi</span><b>KinoShow MChJ</b><span>To‘lov usuli</span><b>${esc(p.method||o.pay||'—')}</b><span>Karta</span><b>${esc(p.mask||'—')}</b><span>Tranzaksiya ID</span><b>${esc(p.txn||'—')}</b><span>RRN</span><b>${esc(p.rrn||'—')}</b><span>Avtorizatsiya kodi</span><b>${esc(p.auth||'—')}</b><span>To‘langan vaqt</span><b>${dt(p.at||o.ts)}</b>
-  ${o.sub!=null?`<span>Chipta va taomlar</span><b>${fmt(o.sub)}</b>`:''}${o.disc?`<span>Chegirma${o.promo?' ('+esc(o.promo)+')':''}</span><b>−${fmt(o.disc)}</b>`:''}<span>Jami</span><b>${fmt(o.total)}</b>${!paid(o)?`<span>Qaytarildi</span><b>${dt(o.refundAt)}</b>`:''}</div></div>`}
+  ${o.sub!=null?`<span>Chipta va taomlar</span><b>${fmt(o.sub)}</b>`:''}${o.disc?`<span>Chegirma${o.promo?' ('+esc(o.promo)+')':''}</span><b>−${fmt(o.disc)}</b>`:''}<span>Jami</span><b>${fmt(o.total)}</b>${o.src?`<span>Savdo kanali</span><b>${esc(o.src)}</b>`:''}
+  ${paid(o)?`<span>Qaytarish sharti</span><b>${sstart(o)<Date.now()?'Seans o‘tgan':canRefund(o)?rfDeadline(o)+' gacha (seansdan 24 soat oldin)':'Muddat o‘tgan (seansga 24 soatdan kam qoldi)'}</b>`:`<span>Qaytarildi</span><b>${dt(o.refundAt)}</b>${o.refund?`<span>Qaytarish ID</span><b>${esc(o.refund.id)}</b><span>Sabab</span><b>${esc(o.refund.reason)}</b><span>Kim qaytardi</span><b>${o.refund.by==='admin'?'Administrator':'Mijoz'}</b>`:''}`}</div></div>`}
 function ticket(code){
-  const o=orders().find(x=>x.code===code);if(!o)return`<div class="w sec"><p>Chipta topilmadi.</p></div>`;
-  return`<div class="w sec"><h2 style="margin-bottom:6px">${paid(o)?'Chipta tayyor':'Chipta bekor qilingan'}</h2><p class="sub">Zalga kirishda QR kodni ko‘rsating. Chipta “Chiptalarim” bo‘limida saqlanadi.</p><div class="tkw">${tkHTML(o)}${receipt(o)}</div><div class="chips" style="margin-top:14px"><button class="btn" onclick="window.print()">Chop etish</button><a class="gh" href="#/orders">Chiptalarim</a></div></div>`;
+  const o=findOrder(code);if(!o)return`<div class="w sec"><p>Chipta topilmadi.</p></div>`;
+  const adm=S.adm&&(!S.user||o.uid!==S.user.id);
+  return`<div class="w sec"><h2 style="margin-bottom:6px">${paid(o)?'Chipta tayyor':'Chipta qaytarilgan'}</h2><p class="sub">Zalga kirishda QR kodni ko‘rsating. ${rfNote(o)}</p><div class="tkw">${tkHTML(o)}${receipt(o)}</div><div class="chips" style="margin-top:14px"><button class="btn" onclick="window.print()">Chop etish</button>${canRefund(o)?`<button class="gh" data-a="refund" data-v="${o.code}">Chiptani qaytarish</button>`:''}<a class="gh" href="${adm?'#/admin':'#/orders'}">${adm?'Admin panel':'Chiptalarim'}</a></div></div>`;
 }
 function ordersP(){
-  const all=orders().filter(o=>S.user?o.uid===S.user.id:!o.uid),l=all.slice(0,S.opage*20);
-  return`<div class="w sec"><div class="sh"><h2>Chiptalarim</h2><span class="sub">${all.length} ta buyurtma</span></div>${S.user?'':'<div class="card" style="margin-bottom:14px">Chiptalaringiz barcha qurilmada saqlanishi uchun <a href="#/login" style="color:var(--ac);font-weight:700">hisobingizga kiring</a>.</div>'}
-  ${l.length?l.map(o=>`<div class="shw"><div><b>${o.code}</b> · ${esc((mov(o.mid)||{}).t)} ${badge(o)}<div class="sub">${(CIN[o.ci]||{}).n} · ${o.date.split('-').reverse().join('.')} ${o.time} · ${o.seats.join(', ')} · ${fmt(o.total)} · ${esc((o.payment||{}).method||o.pay)}</div></div><div class="chips"><a class="gh" href="#/ticket/${o.code}">Ko‘rish</a>${paid(o)&&sstart(o)-Date.now()>30*60000?`<button class="gh" data-a="cancel" data-v="${o.code}">Bekor qilish</button>`:''}</div></div>`).join('')+(all.length>l.length?`<button class="gh" style="margin-top:14px" data-a="more" data-v="opage">Yana ko‘rsatish (${all.length-l.length})</button>`:''):'<p class="sub">Hozircha chipta yo‘q.</p>'}</div>`;
+  const all=S.user?myOrders():orders().filter(o=>!o.uid),l=all.slice(0,S.opage*20);
+  return`<div class="w sec"><div class="sh"><h2>Chiptalarim</h2><span class="sub">${all.length} ta buyurtma</span></div><div class="card" style="margin-bottom:14px;font-size:14px">↩ <b>Qaytarish qoidasi:</b> chiptani seans boshlanishidan kamida <b>24 soat oldin</b> qaytarish mumkin, pul to‘liq qaytariladi. 24 soatdan kam qolganda qaytarilmaydi.</div>${S.user?'':'<div class="card" style="margin-bottom:14px">Chiptalaringiz barcha qurilmada saqlanishi uchun <a href="#/login" style="color:var(--ac);font-weight:700">hisobingizga kiring</a>.</div>'}
+  ${l.length?l.map(o=>`<div class="shw"><div><b>${o.code}</b> · ${esc((mov(o.mid)||{}).t)} ${badge(o)}${srcB(o)}<div class="sub">${(CIN[o.ci]||{}).n} · ${o.date.split('-').reverse().join('.')} ${o.time} · ${o.seats.join(', ')} · ${fmt(o.total)} · ${esc((o.payment||{}).method||o.pay)}</div>${rfNote(o)}</div><div class="chips"><a class="gh" href="#/ticket/${o.code}">Ko‘rish</a>${canRefund(o)?`<button class="gh" data-a="refund" data-v="${o.code}">Qaytarish</button>`:''}</div></div>`).join('')+(all.length>l.length?`<button class="gh" style="margin-top:14px" data-a="more" data-v="opage">Yana ko‘rsatish (${all.length-l.length})</button>`:''):'<p class="sub">Hozircha chipta yo‘q.</p>'}</div>`;
 }
 function login(){
-  if(S.user){const u=KSAuth.all().find(x=>x.id===S.user.id)||{},my=orders().filter(o=>o.uid===S.user.id);
+  if(S.user){const u=KSAuth.all().find(x=>x.id===S.user.id)||{},my=myOrders();
     return`<div class="form card"><h2>Mening hisobim</h2><div class="kv" style="margin-top:12px"><span>Ism</span><b>${esc(u.name)}</b><span>Telefon</span><b>${KSAuth.fmtPhone(u.phone)}</b><span>Ro‘yxatdan o‘tgan</span><b>${dt(u.createdAt)}</b><span>Buyurtmalar</span><b>${my.filter(paid).length} ta</b><span>Jami to‘lov</span><b>${fmt(my.filter(paid).reduce((a,o)=>a+o.total,0))}</b></div><a class="btn" style="display:block;text-align:center;margin-top:14px" href="#/orders">Chiptalarim</a><button class="gh" style="width:100%;margin-top:8px" data-a="logout">Chiqish</button></div>`}
   const up=S.lt==='up';
   return`<div class="form card">${S.ret?'<p class="ok" style="margin:0 0 8px">Chipta olish uchun hisobingizga kiring yoki ro‘yxatdan o‘ting.</p>':''}<div class="tabs"><button class="${up?'':'on'}" data-a="ltab" data-v="in">Kirish</button><button class="${up?'on':''}" data-a="ltab" data-v="up">Ro‘yxatdan o‘tish</button></div>
@@ -230,25 +276,31 @@ function login(){
 }
 
 /* ---------- admin ---------- */
+const MTH=PAYS.concat(['Naqd']),CHN=['Sayt','Kassa','Mobil ilova','Telegram bot'];
 function stats(){
-  const o=orders(),p=o.filter(paid),c=o.filter(x=>!paid(x)),u=KSAuth.all(),today=new Date().setHours(0,0,0,0);
+  const o=allOrders(),p=o.filter(paid),c=o.filter(x=>!paid(x)),u=KSAuth.all(),today=new Date().setHours(0,0,0,0);
   const rev=p.reduce((a,x)=>a+x.total,0),tc=p.reduce((a,x)=>a+x.seats.length,0);
-  const by=CITY.map((cc,i)=>({n:cc[0],v:p.filter(x=>(CIN[x.ci]||{}).city===i).reduce((a,x)=>a+x.total,0)})).filter(x=>x.v),mx=Math.max(1,...by.map(x=>x.v));
-  const pm=PAYS.map(n=>({n,v:p.filter(x=>((x.payment||{}).method||x.pay)===n).reduce((a,x)=>a+x.total,0)})),pmx=Math.max(1,...pm.map(x=>x.v));
+  const bar=(l,mx,w=110)=>l.map(x=>`<div class="ln"><span style="width:${w}px">${x.n}</span><div class="bar" style="flex:1;align-self:center"><span style="width:${x.v/mx*100}%"></span></div><span style="width:120px;text-align:right">${fmt(x.v)}</span></div>`).join('');
+  const sum=f=>{const m={};p.forEach(x=>{const k=f(x);m[k]=(m[k]||0)+x.total});return m};
+  const bc=sum(x=>(CIN[x.ci]||{}).city),by=CITY.map((cc,i)=>({n:cc[0],v:bc[i]||0})).filter(x=>x.v).sort((a,b)=>b.v-a.v);
+  const bm=sum(x=>(x.payment||{}).method||x.pay),pm=MTH.map(n=>({n,v:bm[n]||0}));
+  const bch=sum(x=>x.src||'Sayt'),ch=CHN.map(n=>({n,v:bch[n]||0}));
   const fm={};p.forEach(x=>{fm[x.mid]=(fm[x.mid]||0)+x.seats.length});const top=Object.entries(fm).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  return`<div class="cards kpi"><div class="card"><div class="sub">Foydalanuvchilar</div><h2>${u.length}</h2><div class="sub">bugun: +${u.filter(x=>x.createdAt>=today).length}</div></div><div class="card"><div class="sub">To‘langan buyurtmalar</div><h2>${p.length}</h2><div class="sub">bekor qilingan: ${c.length}</div></div><div class="card"><div class="sub">Sotilgan chiptalar</div><h2>${tc}</h2><div class="sub">o‘rtacha chek: ${fmt(p.length?rev/p.length:0)}</div></div><div class="card"><div class="sub">Tushum</div><h2>${fmt(rev)}</h2><div class="sub">qaytarilgan: ${fmt(c.reduce((a,x)=>a+x.total,0))}</div></div></div>
-  <div class="cards" style="margin-top:16px"><div class="card"><h3>To‘lov usullari</h3>${pm.map(x=>`<div class="ln"><span style="width:120px">${x.n}</span><div class="bar" style="flex:1;align-self:center"><span style="width:${x.v/pmx*100}%"></span></div><span style="width:110px;text-align:right">${fmt(x.v)}</span></div>`).join('')}</div>
-  <div class="card"><h3>Shaharlar bo‘yicha tushum</h3>${by.length?by.map(x=>`<div class="ln"><span style="width:90px">${x.n}</span><div class="bar" style="flex:1;align-self:center"><span style="width:${x.v/mx*100}%"></span></div><span style="width:110px;text-align:right">${fmt(x.v)}</span></div>`).join(''):'<p class="sub">Hali sotuv yo‘q.</p>'}</div>
-  <div class="card"><h3>Eng ko‘p sotilgan</h3>${top.length?top.map(([id,n],i)=>`<div class="ln"><span>${i+1}. ${esc((mov(id)||{}).t||id)}</span><b>${n} chipta</b></div>`).join(''):'<p class="sub">Hali sotuv yo‘q.</p>'}</div></div>`;
+  const real=u.filter(x=>!x.seed).length,rf=c.filter(x=>x.refund&&x.refund.at>=today).length;
+  return`<div class="cards kpi"><div class="card"><div class="sub">Mijozlar</div><h2>${u.length}</h2><div class="sub">saytda ro‘yxatdan o‘tgan: ${real} · bugun: +${u.filter(x=>!x.seed&&x.createdAt>=today).length}</div></div><div class="card"><div class="sub">To‘langan buyurtmalar</div><h2>${p.length.toLocaleString('ru-RU')}</h2><div class="sub">7 kunlik seanslar</div></div><div class="card"><div class="sub">Sotilgan chiptalar</div><h2>${tc.toLocaleString('ru-RU')}</h2><div class="sub">o‘rtacha chek: ${fmt(p.length?rev/p.length:0)}</div></div><div class="card"><div class="sub">Tushum</div><h2>${fmt(rev)}</h2><div class="sub">&nbsp;</div></div><div class="card"><div class="sub">Qaytarilgan chiptalar</div><h2>${c.length}</h2><div class="sub">${fmt(c.reduce((a,x)=>a+x.total,0))} · bugun: ${rf}</div></div></div>
+  <div class="cards" style="margin-top:16px"><div class="card"><h3>Savdo kanallari</h3>${bar(ch,Math.max(1,...ch.map(x=>x.v)))}</div><div class="card"><h3>To‘lov usullari</h3>${bar(pm,Math.max(1,...pm.map(x=>x.v)))}</div>
+  <div class="card"><h3>Shaharlar bo‘yicha tushum</h3>${by.length?bar(by,by[0].v,90):'<p class="sub">Hali sotuv yo‘q.</p>'}</div>
+  <div class="card"><h3>Eng ko‘p sotilgan</h3>${top.length?top.map(([id,n],i)=>`<div class="ln"><span>${i+1}. ${esc((mov(id)||{}).t||id)}</span><b>${n.toLocaleString('ru-RU')} chipta</b></div>`).join(''):'<p class="sub">Hali sotuv yo‘q.</p>'}</div></div>`;
 }
+function aUsersList(){const q=S.aq.trim().toLowerCase(),qd=q.replace(/\D/g,'');return KSAuth.all().filter(u=>(!S.as||(u.src||'Sayt')===S.as)&&(!q||u.name.toLowerCase().includes(q)||(qd&&u.phone.includes(qd)))).sort((a,b)=>(a.seed?1:0)-(b.seed?1:0)||b.createdAt-a.createdAt)}
 function aUsers(){
-  const q=S.aq.trim().toLowerCase(),o=orders(),l=KSAuth.all().filter(u=>!q||u.name.toLowerCase().includes(q)||u.phone.includes(q.replace(/\D/g,'')||'#')).sort((a,b)=>b.createdAt-a.createdAt);
-  return l.length?`<table><tr><th>#</th><th>Ism</th><th>Telefon</th><th>Ro‘yxatdan o‘tgan</th><th>Oxirgi faollik</th><th>Kirishlar</th><th>Buyurtmalar</th><th>Sarflagan</th><th>Holat</th><th></th></tr>${l.map((u,i)=>{const my=o.filter(x=>x.uid===u.id&&paid(x));return`<tr><td>${i+1}</td><td><b>${esc(u.name)}</b></td><td>${KSAuth.fmtPhone(u.phone)}</td><td>${dt(u.createdAt)}</td><td>${dt(u.lastSeen||u.lastLogin)}</td><td>${u.logins||0}</td><td>${my.length}</td><td>${fmt(my.reduce((a,x)=>a+x.total,0))}</td><td>${u.blocked?'<span class="st st-c">Bloklangan</span>':'<span class="st st-ok">Faol</span>'}</td><td style="white-space:nowrap"><button class="gh" data-a="uorders" data-v="${u.phone}">Buyurtmalari</button> <button class="gh" data-a="ublock" data-v="${u.id}">${u.blocked?'Blokdan chiqarish':'Bloklash'}</button></td></tr>`}).join('')}</table>`:`<p class="sub">${q?'Hech kim topilmadi.':'Hali ro‘yxatdan o‘tgan foydalanuvchi yo‘q. Saytda “Kirish → Ro‘yxatdan o‘tish” orqali birinchi foydalanuvchini yarating.'}</p>`;
+  const all=aUsersList(),l=all.slice(0,S.upage*25),st=ustats();
+  return l.length?`<div class="sub" style="margin-bottom:8px">${all.length} ta mijoz</div><table><tr><th>Ism</th><th>Telefon</th><th>Kanal</th><th>Ro‘yxatdan o‘tgan</th><th>Oxirgi xarid</th><th>Buyurtmalar</th><th>Sarflagan</th><th>Holat</th><th></th></tr>${l.map(u=>{const x=st[u.id]||{n:0,sum:0,last:0};return`<tr><td><b>${esc(u.name)}</b></td><td>${KSAuth.fmtPhone(u.phone)}</td><td>${esc(u.src||'Sayt')}</td><td>${dt(u.createdAt)}</td><td>${dt(x.last)}</td><td>${x.n}</td><td>${fmt(x.sum)}</td><td>${u.blocked?'<span class="st st-c">Bloklangan</span>':u.seed?'<span class="st st-p">Parolsiz (kassa)</span>':'<span class="st st-ok">Faol</span>'}</td><td style="white-space:nowrap"><button class="gh" data-a="uorders" data-v="${u.phone}">Buyurtmalari</button> <button class="gh" data-a="ublock" data-v="${u.id}">${u.blocked?'Blokdan chiqarish':'Bloklash'}</button></td></tr>`}).join('')}</table>${all.length>l.length?`<button class="gh" style="margin-top:12px" data-a="more" data-v="upage">Yana ko‘rsatish (${all.length-l.length})</button>`:''}`:`<p class="sub">Hech kim topilmadi.</p>`;
 }
-function aOrdersList(){const q=S.aq.trim().toLowerCase(),qd=q.replace(/\D/g,'');return orders().filter(o=>(!S.af||(S.af==='paid'?paid(o):!paid(o)))&&(!q||o.code.toLowerCase().includes(q)||String(o.name).toLowerCase().includes(q)||(qd&&String(o.phone).replace(/\D/g,'').includes(qd))))}
+function aOrdersList(){const q=S.aq.trim().toLowerCase(),qd=q.replace(/\D/g,'');return allOrders().filter(o=>(!S.af||(S.af==='paid'?paid(o):!paid(o)))&&(!S.as||(o.src||'Sayt')===S.as)&&(!q||o.code.toLowerCase().includes(q)||String(o.name).toLowerCase().includes(q)||(qd.length>3&&String(o.phone).replace(/\D/g,'').includes(qd))))}
 function aOrders(){
   const all=aOrdersList(),l=all.slice(0,S.apage*25);
-  return l.length?`<table><tr><th>Kod</th><th>Vaqt</th><th>Mijoz</th><th>Seans</th><th>Joylar</th><th>To‘lov</th><th>Summa</th><th>Holat</th><th></th></tr>${l.map(x=>`<tr><td><a href="#/ticket/${x.code}" style="color:var(--ac);font-weight:700">${x.code}</a></td><td>${dt(x.ts)}</td><td>${esc(x.name)}<div class="sub">${esc(x.phone)}</div></td><td>${esc((mov(x.mid)||{}).t)}<div class="sub">${(CIN[x.ci]||{}).n} · ${x.date.split('-').reverse().join('.')} ${x.time}</div></td><td>${x.seats.join(', ')}</td><td>${esc((x.payment||{}).method||x.pay)}<div class="sub">${esc((x.payment||{}).mask||'')}</div></td><td>${fmt(x.total)}</td><td>${badge(x)}</td><td>${paid(x)?`<button class="gh" data-a="cancel" data-v="${x.code}">Bekor qilish</button>`:''}</td></tr>`).join('')}</table>${all.length>l.length?`<button class="gh" style="margin-top:12px" data-a="more" data-v="apage">Yana ko‘rsatish (${all.length-l.length})</button>`:''}`:'<p class="sub">Buyurtma topilmadi.</p>';
+  return l.length?`<div class="sub" style="margin-bottom:8px">${all.length.toLocaleString('ru-RU')} ta buyurtma · qaytarish faqat seansdan 24 soat oldin</div><table><tr><th>Kod</th><th>Vaqt</th><th>Mijoz</th><th>Seans</th><th>Joylar</th><th>To‘lov</th><th>Summa</th><th>Holat</th><th></th></tr>${l.map(x=>`<tr><td><a href="#/ticket/${x.code}" style="color:var(--ac);font-weight:700">${x.code}</a>${srcB(x)}</td><td>${dt(x.ts)}</td><td>${esc(x.name)}<div class="sub">${esc(x.phone)}</div></td><td>${esc((mov(x.mid)||{}).t)}<div class="sub">${(CIN[x.ci]||{}).n} · ${x.date.split('-').reverse().join('.')} ${x.time}</div></td><td>${x.seats.join(', ')}</td><td>${esc((x.payment||{}).method||x.pay)}<div class="sub">${esc((x.payment||{}).mask||'')}</div></td><td>${fmt(x.total)}</td><td>${badge(x)}${x.refund?`<div class="sub">${dt(x.refund.at)} · ${x.refund.by==='admin'?'admin':'mijoz'}</div>`:''}</td><td>${canRefund(x)?`<button class="gh" data-a="refund" data-v="${x.code}">Qaytarish</button>`:paid(x)&&sstart(x)>Date.now()?'<span class="rfn no">24 soatdan kam</span>':''}</td></tr>`).join('')}</table>${all.length>l.length?`<button class="gh" style="margin-top:12px" data-a="more" data-v="apage">Yana ko‘rsatish (${(all.length-l.length).toLocaleString('ru-RU')})</button>`:''}`:'<p class="sub">Buyurtma topilmadi.</p>';
 }
 function aFilms(){
   return`<div class="card"><h3>Yangi film yoki shou qo‘shish</h3><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:8px"><input id="nt" placeholder="Nomi"><select id="ntype"><option value="kino">Film</option><option value="shou">Shou</option></select><select id="ng">${GEN.map(g=>`<option>${g}</option>`).join('')}</select><select id="nl"><option value="uz">O‘zbek</option><option value="ru">Rus</option><option value="en">Ingliz</option></select><select id="nf"><option>2D</option><option>3D</option><option>IMAX</option><option>Jonli</option></select><input id="nd" type="number" placeholder="Davomiyligi (daq)" value="110"></div><div class="err" id="nerr"></div><button class="btn" style="margin-top:6px" data-a="addm">Qo‘shish</button></div>
@@ -257,9 +309,9 @@ function aFilms(){
 const atable=()=>S.at==='users'?aUsers():aOrders();
 function admin(){
   if(!S.adm)return`<div class="form card"><h2>Admin panel</h2><p class="sub">Demo kod: 1234</p><form id="fadm"><label>Kod<input id="acode" type="password" autocomplete="off"></label><div class="err" id="aerr"></div><button class="btn" style="width:100%;margin-top:10px" type="submit">Kirish</button></form></div>`;
-  const T=[['stats','Umumiy'],['users','Foydalanuvchilar ('+KSAuth.all().length+')'],['orders','Buyurtmalar ('+orders().length+')'],['films','Filmlar']];
+  const T=[['stats','Umumiy'],['users','Mijozlar ('+KSAuth.all().length+')'],['orders','Buyurtmalar ('+allOrders().length.toLocaleString('ru-RU')+')'],['films','Filmlar']];
   let body;
-  if(S.at==='users'||S.at==='orders')body=`<div class="card tw"><div class="chips" style="margin-bottom:12px"><input id="aq" style="max-width:300px" placeholder="${S.at==='users'?'Ism yoki telefon':'Kod, ism yoki telefon'} bo‘yicha qidirish" value="${esc(S.aq)}">${S.at==='orders'?`<select id="af"><option value="">Barcha holatlar</option><option value="paid" ${S.af==='paid'?'selected':''}>To‘langan</option><option value="cancel" ${S.af==='cancel'?'selected':''}>Bekor qilingan</option></select>`:''}<button class="gh" data-a="csv" data-v="${S.at}">⬇ Excel (CSV) yuklab olish</button></div><div id="atable">${atable()}</div></div>`;
+  if(S.at==='users'||S.at==='orders')body=`<div class="card tw"><div class="chips" style="margin-bottom:12px"><input id="aq" style="max-width:300px" placeholder="${S.at==='users'?'Ism yoki telefon':'Kod, ism yoki telefon'} bo‘yicha qidirish" value="${esc(S.aq)}"><select id="asrc"><option value="">Barcha kanallar</option>${CHN.map(c=>`<option ${S.as===c?'selected':''}>${c}</option>`).join('')}</select>${S.at==='orders'?`<select id="af"><option value="">Barcha holatlar</option><option value="paid" ${S.af==='paid'?'selected':''}>To‘langan</option><option value="cancel" ${S.af==='cancel'?'selected':''}>Qaytarilgan</option></select>`:''}<button class="gh" data-a="csv" data-v="${S.at}">⬇ Excel (CSV) yuklab olish</button></div><div id="atable">${atable()}</div></div>`;
   else body=S.at==='films'?aFilms():stats();
   return`<div class="w sec"><div class="sh"><h2>Boshqaruv paneli</h2><button class="gh" data-a="alogout">Chiqish</button></div><div class="tabs wide">${T.map(t=>`<button class="${S.at===t[0]?'on':''}" data-a="atab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>${body}</div>`;
 }
@@ -305,19 +357,25 @@ const ACT={
     const o={code,key:skey(B),ci:B.ci,mid:B.mid,date:B.date,time:B.time,seats:B.sel.slice().sort(),sn:B.sn,sub:k.base+k.sn,disc:k.d,promo:k.d?B.promo:'',total:k.total,name,phone,pay:B.pay,uid:S.user?S.user.id:null,st:'paid',payment:{method:r.method,brand:r.brand,mask:r.mask,txn:r.txn,rrn:r.rrn,auth:r.auth,at:r.paidAt},ts:Date.now()};
     if(!sv('orders',[o,...orders()]))return toast('Xotira to‘ldi: buyurtma saqlanmadi, to‘lov qaytarildi');
     if(k.d&&B.promo)sv('promo','');S.B=null;go('#/ticket/'+code)},
-  cancel:v=>{const l=orders(),o=l.find(x=>x.code===v);if(!o||!paid(o))return;const adm=location.hash.startsWith('#/admin');
-    if(!adm&&sstart(o)-Date.now()<30*60000)return toast('Seansga 30 daqiqadan kam qoldi, bekor qilib bo‘lmaydi');
-    if(!confirm(`${o.code} chiptasi bekor qilinsinmi? ${fmt(o.total)} kartaga qaytariladi va joylar bo‘shaydi.`))return;
-    if(sv('orders',l.map(x=>x.code===v?{...x,st:'cancel',refundAt:Date.now(),cancelBy:adm?'admin':'user'}:x))){toast('Chipta bekor qilindi, '+fmt(o.total)+' qaytarildi');draw()}},
+  refund:async v=>{const o=findOrder(v);if(!o||!paid(o))return;const adm=location.hash.startsWith('#/admin')||(S.adm&&(!S.user||o.uid!==S.user.id));
+    if(sstart(o)<Date.now())return toast('Seans o‘tib ketgan, chiptani qaytarib bo‘lmaydi');
+    if(!canRefund(o))return toast('Qaytarib bo‘lmaydi: seansga 24 soatdan kam qoldi. Qaytarish muddati '+rfDeadline(o)+' da tugagan');
+    const p=o.payment||{};
+    const r=await KSPay.refund({orderId:o.code,seats:o.seats.join(', '),amount:o.total,method:p.method||o.pay,mask:p.mask,desc:`${(mov(o.mid)||{}).t} · ${(CIN[o.ci]||{}).n} · ${o.date.split('-').reverse().join('.')} ${o.time} · ${o.name}`});
+    if(!r.ok)return;
+    const info={id:r.id,at:r.at,reason:r.reason,by:adm?'admin':'user',amount:o.total};
+    const ok=o.seed?sv('scancel',{...scancel(),[o.gid]:info}):sv('orders',orders().map(x=>x.code===o.code?{...x,st:'cancel',refundAt:r.at,refund:info,cancelBy:info.by}:x));
+    if(ok){toast(fmt(o.total)+' qaytarildi, joylar qayta sotuvga chiqdi');draw()}},
+  cancel:v=>ACT.refund(v),
   more:v=>{S[v]++;draw()},
   ltab:v=>{S.lt=v;draw()},
   logout:()=>{KSAuth.logout();S.user=null;toast('Hisobdan chiqdingiz');go('#/')},
   alogout:()=>{S.adm=false;sessionStorage.removeItem('ks-adm');draw()},
-  atab:v=>{S.at=v;S.aq='';S.apage=1;draw()},
+  atab:v=>{S.at=v;S.aq='';S.as='';S.af='';S.apage=1;S.upage=1;draw()},
   ublock:v=>{const u=KSAuth.all().find(x=>x.id===v);if(!u)return;if(!u.blocked&&!confirm(u.name+' bloklansinmi? U hisobiga kira olmaydi.'))return;KSAuth.setBlocked(v,!u.blocked);toast(u.blocked?'Blokdan chiqarildi':'Bloklandi');draw()},
-  uorders:v=>{S.at='orders';S.aq=v;S.apage=1;draw()},
-  csv:v=>{const d=new Date().toISOString().slice(0,10);if(v==='users'){const o=orders();dl(`foydalanuvchilar-${d}.csv`,[['ID','Ism','Telefon','Ro‘yxatdan o‘tgan','Oxirgi faollik','Kirishlar','Buyurtmalar','Sarflagan (so‘m)','Holat'],...KSAuth.all().map(u=>{const my=o.filter(x=>x.uid===u.id&&paid(x));return[u.id,u.name,KSAuth.fmtPhone(u.phone),dt(u.createdAt),dt(u.lastSeen),u.logins,my.length,my.reduce((a,x)=>a+x.total,0),u.blocked?'Bloklangan':'Faol']})])}
-    else dl(`buyurtmalar-${d}.csv`,[['Kod','Vaqt','Mijoz','Telefon','Film','Zal','Seans','Joylar','To‘lov usuli','Karta','Tranzaksiya','Summa (so‘m)','Holat'],...aOrdersList().map(x=>[x.code,dt(x.ts),x.name,x.phone,(mov(x.mid)||{}).t,(CIN[x.ci]||{}).n,x.date+' '+x.time,x.seats.join(' '),(x.payment||{}).method||x.pay,(x.payment||{}).mask||'',(x.payment||{}).txn||'',x.total,paid(x)?'To‘langan':'Bekor qilingan'])]);toast('Fayl yuklab olindi')},
+  uorders:v=>{S.at='orders';S.aq=v;S.as='';S.af='';S.apage=1;draw()},
+  csv:v=>{const d=new Date().toISOString().slice(0,10);if(v==='users'){const st=ustats();dl(`mijozlar-${d}.csv`,[['ID','Ism','Telefon','Kanal','Ro‘yxatdan o‘tgan','Oxirgi xarid','Buyurtmalar','Sarflagan (so‘m)','Holat'],...aUsersList().map(u=>{const x=st[u.id]||{n:0,sum:0,last:0};return[u.id,u.name,KSAuth.fmtPhone(u.phone),u.src||'Sayt',dt(u.createdAt),dt(x.last),x.n,x.sum,u.blocked?'Bloklangan':u.seed?'Parolsiz (kassa)':'Faol']})])}
+    else dl(`buyurtmalar-${d}.csv`,[['Kod','Vaqt','Mijoz','Telefon','Film','Zal','Seans','Joylar','To‘lov usuli','Karta','Tranzaksiya','Summa (so‘m)','Holat','Kanal','Qaytarilgan vaqt','Qaytarish sababi'],...aOrdersList().map(x=>[x.code,dt(x.ts),x.name,x.phone,(mov(x.mid)||{}).t,(CIN[x.ci]||{}).n,x.date+' '+x.time,x.seats.join(' '),(x.payment||{}).method||x.pay,(x.payment||{}).mask||'',(x.payment||{}).txn||'',x.total,paid(x)?'To‘langan':'Qaytarilgan',x.src||'Sayt',x.refund?dt(x.refund.at):'',x.refund?x.refund.reason:''])]);toast('Fayl yuklab olindi')},
   addm:()=>{const t=$('#nt').value.trim();if(t.length<2)return $('#nerr').textContent='Nomini kiriting';const id='x'+Date.now(),h=hash(t)%360;
     S.extra.push({id,type:$('#ntype').value,t,lang:$('#nl').value,fmt:$('#nf').value,r:8.0,d:+$('#nd').value||100,g:[$('#ng').value],c:`hsl(${h} 55% 28%)`,ds:'Yangi qo‘shilgan namoyish.'});if(sv('extra',S.extra))toast('Qo‘shildi');draw()},
   delm:v=>{const m=mov(v);if(!m||!confirm(m.t+' katalogdan o‘chirilsinmi?'))return;S.extra=S.extra.filter(x=>x.id!==v);sv('extra',S.extra);draw()}
@@ -331,11 +389,12 @@ document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b&
 document.addEventListener('submit',e=>{const f=FORMS[e.target.id];if(f){e.preventDefault();f()}});
 document.addEventListener('input',e=>{const i=e.target.id,B=S.B;
   if(i==='mq'){S.q=e.target.value;$('#grid').innerHTML=gridHTML(filtered())}
-  else if(i==='aq'){S.aq=e.target.value;S.apage=1;$('#atable').innerHTML=atable()}
+  else if(i==='aq'){S.aq=e.target.value;S.apage=1;S.upage=1;clearTimeout(S.aqT);S.aqT=setTimeout(()=>{const t=$('#atable');if(t)t.innerHTML=atable()},200)}
   else if(i==='name'&&B)B.name=e.target.value;else if(i==='phone'&&B)B.phone=e.target.value});
 document.addEventListener('change',e=>{const i=e.target.id,v=e.target.value;
   if(i==='citySel'){S.city=+v;sv('city',S.city);draw()}
   else if(i==='af'){S.af=v;S.apage=1;$('#atable').innerHTML=atable()}
+  else if(i==='asrc'){S.as=v;S.apage=1;S.upage=1;$('#atable').innerHTML=atable()}
   else if(i==='genSel'){S.gen=v;draw()}else if(i==='langSel'){S.lang=v;draw()}});
 if(localStorage.getItem('theme'))document.documentElement.dataset.theme=localStorage.getItem('theme');
 route();
